@@ -4,7 +4,7 @@ import requests
 import os
 
 app = Flask(__name__)
-CORS(app)  # تمكين CORS لجميع المسارات
+CORS(app)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 MODEL = "meta-llama/llama-4-maverick:free"
@@ -22,6 +22,14 @@ def generate_headlines():
         return jsonify({"error": "يرجى إدخال كلمة مفتاحية"}), 400
 
     try:
+        prompt = (
+            f"أنت مساعد محترف في كتابة المحتوى، مهمتك هي توليد 5 عناوين "
+            f"لمقالات عربية جذابة ومقنعة وجاهزة للنشر على مدونة. "
+            f"يجب أن تستخدم أفضل ممارسات تحسين محركات البحث (SEO) مثل تضمين الكلمة المفتاحية بشكل طبيعي، "
+            f"وصياغة العنوان بطريقة تشجع على النقر، دون استخدام رموز أو ترقيم. "
+            f"الكلمة المفتاحية هي: {keyword}. لا تكرر الكلمة المفتاحية أكثر من مرة في العنوان الواحد، واجعل كل عنوان فريدًا."
+        )
+
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
@@ -33,16 +41,13 @@ def generate_headlines():
             json={
                 "model": MODEL,
                 "messages": [
-                    {
-                        "role": "user",
-                        "content": f"أكتب 5 عناوين لمقالات عربية جذابة عن: {keyword}، باستخدام النقطتين للفصل، بدون ترقيم أو رموز"
-                    }
+                    {"role": "user", "content": prompt}
                 ]
             }
         )
         result = response.json()
         content = result["choices"][0]["message"]["content"]
-        titles = [line.strip(" -").strip() for line in content.split("\n") if ":" in line]
+        titles = [line.strip(" -•").strip() for line in content.split("\n") if len(line.strip()) > 5]
         return jsonify({"titles": titles[:5]})
     except Exception as e:
         return jsonify({"error": "فشل الاتصال بالخادم أو استجابة غير صالحة", "details": str(e)}), 500
