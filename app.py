@@ -1,39 +1,43 @@
-from flask import Flask, request, jsonify import requests import os
+from flask import Flask, request, jsonify
+import requests
+import os
 
-app = Flask(name)
+app = Flask(__name__)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+MODEL = "meta-llama/llama-4-maverick:free"
 
-@app.route("/generate", methods=["POST"]) def generate(): data = request.get_json() keyword = data.get("keyword", "").strip()
+@app.route("/generate", methods=["POST"])
+def generate_headlines():
+    data = request.get_json()
+    keyword = data.get("keyword", "").strip()
 
-if not keyword:
-    return jsonify({"error": "يرجى إدخال كلمة مفتاحية."}), 400
+    if not keyword:
+        return jsonify({"error": "يرجى إدخال كلمة مفتاحية"}), 400
 
-headers = {
-    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-    "Content-Type": "application/json",
-    "HTTP-Referer": "https://your-blog-url.com",
-    "X-Title": "Headline Generator"
-}
+    try:
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": MODEL,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"أكتب 5 عناوين لمقالات عربية جذابة عن: {keyword}، باستخدام النقطتين للفصل، بدون ترقيم أو رموز"
+                    }
+                ]
+            }
+        )
+        result = response.json()
+        content = result["choices"][0]["message"]["content"]
+        titles = [line.strip(" -").strip() for line in content.split("\n") if ":" in line]
+        return jsonify({"titles": titles[:5]})
+    except Exception as e:
+        return jsonify({"error": "فشل الاتصال بالخادم أو استجابة غير صالحة", "details": str(e)}), 500
 
-body = {
-    "model": "meta-llama/llama-4-maverick:free",
-    "messages": [
-        {
-            "role": "user",
-            "content": f"اكتب 5 عناوين مقالات عربية فقط (بدون أرقام) عن \"{keyword}\" باستخدام النقطتين كفاصل"
-        }
-    ]
-}
-
-try:
-    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=body)
-    response.raise_for_status()
-    data = response.json()
-    content = data["choices"][0]["message"]["content"]
-    return jsonify({"titles": content})
-except Exception as e:
-    return jsonify({"error": str(e)}), 500
-
-if name == "main": app.run(host="0.0.0.0", port=5000)
-
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
