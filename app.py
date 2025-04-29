@@ -1,11 +1,17 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 import os
 
 app = Flask(__name__)
+CORS(app)  # تمكين CORS لجميع المسارات
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 MODEL = "meta-llama/llama-4-maverick:free"
+
+@app.route("/")
+def index():
+    return "OpenRouter Flask API is running."
 
 @app.route("/generate", methods=["POST"])
 def generate_headlines():
@@ -20,7 +26,9 @@ def generate_headlines():
             "https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://anoan.onrender.com",
+                "X-Title": "Blogger AI Headlines"
             },
             json={
                 "model": MODEL,
